@@ -367,10 +367,9 @@ def create_sales_agent_node() -> callable:
     Returns:
         callable: Sales agent function
     """
-    # Use GPT-4o-mini for Level 1 sales conversations (fast, efficient)
-    # NOTE: Config has "gpt-5-nano" which doesn't exist yet - using gpt-4o-mini as intended model
+    # Use GPT-5-nano for Level 1 sales conversations (fast, efficient)
     llm = ChatOpenAI(
-        model="gpt-4o-mini",  # Fast, cost-effective model for conversations
+        model=settings.openai_supervisor_model,  # gpt-5-nano
         temperature=0.7,  # Slightly higher for more conversational tone
         max_tokens=500,  # Keep responses concise
         api_key=settings.openai_api_key,

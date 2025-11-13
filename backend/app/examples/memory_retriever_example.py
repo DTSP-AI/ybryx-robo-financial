@@ -171,8 +171,9 @@ async def example_langchain_chain():
 
     prompt = ChatPromptTemplate.from_template(template)
 
-    # Create LLM
-    llm = ChatOpenAI(model="gpt-4", temperature=0.7)
+    # Create LLM - using GPT-5-nano for consistency
+    from app.config import settings
+    llm = ChatOpenAI(model=settings.openai_supervisor_model, temperature=0.7)
 
     # Format retrieved documents
     def format_docs(docs):

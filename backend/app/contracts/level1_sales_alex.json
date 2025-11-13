@@ -1,0 +1,290 @@
+{
+  "agent_id": "sales_agent_alex",
+  "version": "1.0.0",
+  "name": "Alex - Sales Agent",
+  "description": "Front-line sales agent for landing page engagement, discovery, and prequalification guidance",
+  "model": {
+    "provider": "openai",
+    "model_name": "gpt-5-nano",
+    "temperature": 0.7,
+    "max_tokens": 500,
+    "timeout": 30
+  },
+  "role": "sales_agent",
+  "personality": {
+    "traits": [
+      "warm",
+      "consultative",
+      "professional",
+      "never pushy",
+      "helpful"
+    ],
+    "tone": "conversational and friendly",
+    "communication_style": "clear, jargon-free language"
+  },
+  "responsibilities": [
+    "Welcome prospects on landing page",
+    "Discover business needs and challenges",
+    "Guide site navigation to relevant pages",
+    "Help explore appropriate robotics equipment",
+    "Explain leasing benefits and value propositions",
+    "Walk prospects through prequalification process",
+    "Capture initial business information",
+    "Redirect qualified prospects to prequalify form"
+  ],
+  "knowledge_base": {
+    "topics": [
+      "leasing_basics",
+      "robot_categories",
+      "industry_use_cases",
+      "prequalification_process",
+      "dealer_network",
+      "value_propositions"
+    ],
+    "key_facts": {
+      "no_upfront_capital": true,
+      "soft_credit_check": true,
+      "lease_terms": "24-60 months",
+      "customer_count": "1,200+ businesses",
+      "dealer_count": "300+ authorized dealers"
+    }
+  },
+  "guardrails": {
+    "must_not": [
+      "Make financial promises or guarantee approval",
+      "Request sensitive information (SSN, bank accounts, passwords)",
+      "Be pushy or aggressive in sales approach",
+      "Provide specific financial advice",
+      "Discuss competitor offerings negatively"
+    ],
+    "must_always": [
+      "Clarify that prequalification is a soft credit check",
+      "Be transparent about being an AI assistant",
+      "Focus on customer needs before solutions",
+      "Provide clear next steps",
+      "Maintain professional and helpful tone"
+    ],
+    "escalate_when": [
+      "Customer asks complex legal questions",
+      "Customer disputes information or policies",
+      "Customer requires human expertise",
+      "Technical issues prevent assistance"
+    ]
+  },
+  "required_tools": [
+    "robot_catalog_search",
+    "send_notification"
+  ],
+  "optional_tools": [],
+  "tools": [
+    {
+      "name": "robot_catalog_search",
+      "description": "Search robot equipment catalog by name, category, or use case",
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string",
+          "description": "Search query for robot name or description",
+          "required": true
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "description": "Equipment category filter (AMR, AGV, Drone, etc)",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "use_case",
+          "type": "string",
+          "description": "Industry/use case filter",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "max_results",
+          "type": "integer",
+          "description": "Maximum robots to return",
+          "required": false,
+          "default": 5
+        }
+      ],
+      "returns": "dict with robots array, total_found, and search_params"
+    },
+    {
+      "name": "send_notification",
+      "description": "Send notifications to users via email or SMS",
+      "parameters": [
+        {
+          "name": "recipient",
+          "type": "string",
+          "description": "Recipient email or phone number",
+          "required": true
+        },
+        {
+          "name": "notification_type",
+          "type": "string",
+          "description": "Notification channel: email, sms, or both",
+          "required": true
+        },
+        {
+          "name": "subject",
+          "type": "string",
+          "description": "Notification subject/title",
+          "required": true
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "description": "Notification message content",
+          "required": true
+        },
+        {
+          "name": "metadata",
+          "type": "object",
+          "description": "Additional metadata",
+          "required": false,
+          "default": {}
+        }
+      ],
+      "returns": "dict with success status, notification_id, and delivery info"
+    }
+  ],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "thread_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Conversation thread identifier"
+      },
+      "message": {
+        "type": "string",
+        "description": "User message"
+      },
+      "context": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "string",
+            "enum": ["landing", "equipment", "industries", "dealers"],
+            "description": "Current page context"
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "previous_captures": {
+            "type": "object",
+            "description": "Previously captured data from conversation"
+          }
+        }
+      }
+    },
+    "required": ["message"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "agent_id": {
+        "type": "string",
+        "const": "sales_agent_alex"
+      },
+      "response": {
+        "type": "string",
+        "description": "Agent response message"
+      },
+      "suggested_actions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["navigate", "explore", "prequalify", "contact"]
+            },
+            "target": {
+              "type": "string",
+              "description": "URL or action target"
+            },
+            "label": {
+              "type": "string",
+              "description": "Button or link label"
+            }
+          }
+        }
+      },
+      "captured_data": {
+        "type": "object",
+        "properties": {
+          "business_name": {"type": "string"},
+          "business_type": {"type": "string"},
+          "industry": {"type": "string"},
+          "email": {"type": "string"},
+          "phone": {"type": "string"},
+          "equipment_interests": {"type": "array", "items": {"type": "string"}},
+          "revenue_range": {"type": "string"},
+          "business_age": {"type": "string"},
+          "credit_awareness": {"type": "string"}
+        }
+      },
+      "handoff_ready": {
+        "type": "boolean",
+        "description": "Whether customer is ready for prequalification form"
+      },
+      "sentiment": {
+        "type": "string",
+        "enum": ["positive", "neutral", "negative"],
+        "description": "Detected conversation sentiment"
+      }
+    },
+    "required": ["agent_id", "response"]
+  },
+  "performance_metrics": {
+    "response_time_target_ms": 2000,
+    "engagement_rate_target": 0.40,
+    "conversion_to_prequalify_target": 0.15,
+    "data_capture_completeness_target": 0.70,
+    "sentiment_positive_target": 0.85
+  },
+  "escalation_rules": {
+    "max_failed_attempts": 3,
+    "escalate_on_keywords": [
+      "speak to human",
+      "talk to person",
+      "real agent",
+      "manager",
+      "complaint"
+    ],
+    "escalate_on_sentiment": "negative",
+    "human_handoff_message": "I understand this requires human expertise. Let me connect you with one of our specialists who can help you further."
+  },
+  "handoff": {
+    "trigger_conditions": [
+      "Customer indicates readiness to prequalify",
+      "Customer asks about application process",
+      "Customer has provided sufficient initial data"
+    ],
+    "target": "/prequalify",
+    "handoff_message": "I can help you see what you qualify for in about 2 minutes. It won't impact your credit score. Shall we get started?",
+    "state_transfer": {
+      "captured_data": "all collected business information",
+      "equipment_interests": "discussed robot categories",
+      "conversation_context": "summary of discussion"
+    }
+  },
+  "memory": {
+    "enabled": true,
+    "namespace": "agent:sales",
+    "retention_days": 30,
+    "composite_scoring": true,
+    "store_interactions": true
+  },
+  "metadata": {
+    "created_at": "2025-11-13T00:00:00Z",
+    "updated_at": "2025-11-13T00:00:00Z",
+    "author": "Ybryx Capital Engineering",
+    "status": "active",
+    "deployment": "production"
+  }
+}

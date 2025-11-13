@@ -1,0 +1,412 @@
+{
+  "agent_id": "supervisor",
+  "version": "1.0.0",
+  "name": "Supervisor Agent",
+  "description": "Backend orchestration agent that routes user requests to appropriate specialist agents",
+  "model": {
+    "provider": "openai",
+    "model_name": "gpt-5-nano",
+    "temperature": 0.1,
+    "max_tokens": 512,
+    "timeout": 20
+  },
+  "role": "supervisor_orchestrator",
+  "personality": {
+    "traits": [
+      "efficient",
+      "decisive",
+      "logical",
+      "coordinating",
+      "systematic"
+    ],
+    "tone": "neutral and analytical",
+    "communication_style": "internal system communication"
+  },
+  "responsibilities": [
+    "Analyze user request intent",
+    "Route requests to appropriate specialist agents",
+    "Manage conversation state and context",
+    "Track iteration count to prevent infinite loops",
+    "Handle errors and fallback scenarios",
+    "Determine when tasks are complete",
+    "Coordinate multi-agent workflows",
+    "Maintain conversation continuity"
+  ],
+  "routing_logic": {
+    "available_routes": [
+      "financing",
+      "dealer_matching",
+      "knowledge",
+      "FINISH"
+    ],
+    "routing_criteria": {
+      "financing": {
+        "triggers": [
+          "prequalification application",
+          "financial scoring request",
+          "risk assessment",
+          "lease term calculation",
+          "approval status inquiry",
+          "credit-related questions"
+        ],
+        "keywords": [
+          "prequalify",
+          "apply",
+          "financing",
+          "approval",
+          "credit",
+          "terms",
+          "lease",
+          "payment"
+        ]
+      },
+      "dealer_matching": {
+        "triggers": [
+          "dealer search request",
+          "location-based inquiry",
+          "authorized partner search",
+          "local dealer request",
+          "dealer contact information"
+        ],
+        "keywords": [
+          "dealer",
+          "near me",
+          "local",
+          "location",
+          "zip code",
+          "area",
+          "partner",
+          "find dealer"
+        ]
+      },
+      "knowledge": {
+        "triggers": [
+          "equipment information request",
+          "robot specifications inquiry",
+          "industry use case questions",
+          "general information request",
+          "leasing education",
+          "roi questions"
+        ],
+        "keywords": [
+          "robot",
+          "equipment",
+          "specs",
+          "specifications",
+          "how does",
+          "what is",
+          "tell me about",
+          "explain",
+          "industry",
+          "use case"
+        ]
+      },
+      "FINISH": {
+        "triggers": [
+          "task completed",
+          "user satisfied",
+          "no further action needed",
+          "max iterations reached",
+          "error requires termination"
+        ],
+        "keywords": [
+          "thank you",
+          "thanks",
+          "that's all",
+          "goodbye",
+          "done",
+          "complete"
+        ]
+      }
+    },
+    "default_route": "knowledge"
+  },
+  "state_management": {
+    "tracked_fields": [
+      "messages",
+      "current_agent",
+      "next_agent",
+      "iteration_count",
+      "max_iterations",
+      "application_id",
+      "error",
+      "completed",
+      "memory_context",
+      "tool_results"
+    ],
+    "max_iterations": 10,
+    "iteration_warning_threshold": 7
+  },
+  "guardrails": {
+    "must_not": [
+      "Route to non-existent agents",
+      "Exceed max iteration limit",
+      "Route without analyzing intent",
+      "Lose conversation context",
+      "Route in infinite loops"
+    ],
+    "must_always": [
+      "Validate routing decision",
+      "Increment iteration counter",
+      "Log routing decisions",
+      "Check iteration limits",
+      "Handle errors gracefully"
+    ],
+    "safety_checks": [
+      "Verify agent exists before routing",
+      "Check iteration count before routing",
+      "Validate state completeness",
+      "Detect routing loops"
+    ]
+  },
+  "required_tools": [],
+  "optional_tools": [],
+  "tools": [],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "messages": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "role": {"type": "string", "enum": ["user", "assistant", "system", "tool"]},
+            "content": {"type": "string"}
+          }
+        }
+      },
+      "current_agent": {
+        "type": "string",
+        "description": "Currently executing agent"
+      },
+      "iteration_count": {
+        "type": "integer",
+        "description": "Current iteration number",
+        "default": 0
+      },
+      "max_iterations": {
+        "type": "integer",
+        "description": "Maximum allowed iterations",
+        "default": 10
+      },
+      "application_id": {
+        "type": "string",
+        "description": "Application or session identifier"
+      },
+      "context": {
+        "type": "object",
+        "description": "Additional context data"
+      }
+    },
+    "required": ["messages"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "agent_id": {
+        "type": "string",
+        "const": "supervisor"
+      },
+      "next_agent": {
+        "type": "string",
+        "enum": ["financing", "dealer_matching", "knowledge", "FINISH"],
+        "description": "Next agent to route to"
+      },
+      "routing_reason": {
+        "type": "string",
+        "description": "Explanation of routing decision"
+      },
+      "iteration_count": {
+        "type": "integer",
+        "description": "Updated iteration count"
+      },
+      "completed": {
+        "type": "boolean",
+        "description": "Whether task is complete"
+      },
+      "error": {
+        "type": "string",
+        "description": "Error message if routing failed"
+      }
+    },
+    "required": ["agent_id", "next_agent", "iteration_count"]
+  },
+  "workflow": {
+    "routing_flow": [
+      {
+        "step": 1,
+        "name": "check_iteration_limit",
+        "action": "Verify iteration count is below max_iterations"
+      },
+      {
+        "step": 2,
+        "name": "analyze_messages",
+        "action": "Analyze user messages to determine intent"
+      },
+      {
+        "step": 3,
+        "name": "consider_context",
+        "action": "Factor in current_agent and conversation state"
+      },
+      {
+        "step": 4,
+        "name": "make_routing_decision",
+        "action": "Select next agent based on analysis"
+      },
+      {
+        "step": 5,
+        "name": "validate_decision",
+        "action": "Ensure routing decision is valid"
+      },
+      {
+        "step": 6,
+        "name": "increment_counter",
+        "action": "Increment iteration count"
+      },
+      {
+        "step": 7,
+        "name": "log_decision",
+        "action": "Log routing decision for monitoring"
+      },
+      {
+        "step": 8,
+        "name": "return_routing",
+        "action": "Return routing decision to graph"
+      }
+    ],
+    "graph_structure": {
+      "entry_point": "supervisor",
+      "edges": {
+        "supervisor_to_financing": "conditional on routing decision",
+        "supervisor_to_dealer_matching": "conditional on routing decision",
+        "supervisor_to_knowledge": "conditional on routing decision",
+        "supervisor_to_finish": "conditional on routing decision",
+        "financing_to_supervisor": "always return to supervisor",
+        "dealer_matching_to_supervisor": "always return to supervisor",
+        "knowledge_to_supervisor": "always return to supervisor"
+      },
+      "terminal_node": "FINISH"
+    }
+  },
+  "error_handling": {
+    "max_iterations_reached": {
+      "action": "Route to FINISH",
+      "log_level": "WARNING",
+      "message": "Maximum iterations reached, ending conversation"
+    },
+    "invalid_routing_decision": {
+      "action": "Default to knowledge agent",
+      "log_level": "WARNING",
+      "message": "Invalid routing decision, defaulting to knowledge"
+    },
+    "llm_timeout": {
+      "action": "Retry once, then route to knowledge",
+      "log_level": "ERROR",
+      "message": "LLM timeout during routing"
+    },
+    "state_corruption": {
+      "action": "Route to FINISH with error",
+      "log_level": "ERROR",
+      "message": "State corruption detected"
+    }
+  },
+  "performance_metrics": {
+    "routing_time_target_ms": 500,
+    "routing_accuracy_target": 0.98,
+    "average_iterations_per_task": 3.5,
+    "max_iterations_hit_rate": 0.01,
+    "routing_error_rate": 0.005
+  },
+  "monitoring": {
+    "key_metrics": [
+      "routing_decisions_per_hour",
+      "average_routing_latency",
+      "routing_accuracy_score",
+      "error_rate",
+      "iteration_distribution",
+      "agent_utilization"
+    ],
+    "logging": {
+      "log_all_routing_decisions": true,
+      "log_level": "INFO",
+      "include_reasoning": true,
+      "log_context": [
+        "application_id",
+        "current_agent",
+        "next_agent",
+        "iteration_count",
+        "message_count"
+      ]
+    },
+    "alerts": [
+      {
+        "condition": "routing_error_rate > 0.05",
+        "severity": "HIGH",
+        "action": "page_on_call_engineer"
+      },
+      {
+        "condition": "average_routing_latency > 1000ms",
+        "severity": "MEDIUM",
+        "action": "send_slack_alert"
+      },
+      {
+        "condition": "max_iterations_hit_rate > 0.10",
+        "severity": "MEDIUM",
+        "action": "review_agent_workflows"
+      }
+    ]
+  },
+  "optimization": {
+    "routing_cache": {
+      "enabled": false,
+      "description": "Cache routing decisions for similar queries"
+    },
+    "parallel_analysis": {
+      "enabled": false,
+      "description": "Analyze with multiple models for consensus"
+    },
+    "intent_classification": {
+      "method": "llm_based",
+      "fallback": "keyword_matching"
+    }
+  },
+  "integration_points": {
+    "specialist_agents": [
+      {
+        "agent_id": "financing_specialist",
+        "node_name": "financing",
+        "implementation": "backend/app/graph/agents.py:create_financing_node"
+      },
+      {
+        "agent_id": "dealer_matching_specialist",
+        "node_name": "dealer_matching",
+        "implementation": "backend/app/graph/agents.py:create_dealer_matching_node"
+      },
+      {
+        "agent_id": "knowledge_specialist",
+        "node_name": "knowledge",
+        "implementation": "backend/app/graph/agents.py:create_knowledge_node"
+      }
+    ],
+    "graph_framework": "LangGraph",
+    "state_management": "LangGraph StateGraph",
+    "persistence": "MemorySaver checkpointer"
+  },
+  "memory": {
+    "enabled": false,
+    "namespace": "agent:supervisor",
+    "retention_days": 1,
+    "composite_scoring": false,
+    "store_interactions": false,
+    "note": "Supervisor uses stateless routing, minimal memory needed"
+  },
+  "metadata": {
+    "created_at": "2025-11-13T00:00:00Z",
+    "updated_at": "2025-11-13T00:00:00Z",
+    "author": "Ybryx Capital Engineering",
+    "status": "active",
+    "deployment": "production",
+    "implementation_file": "backend/app/graph/supervisor.py",
+    "graph_file": "backend/app/graph/supervisor.py:create_supervisor_graph"
+  }
+}

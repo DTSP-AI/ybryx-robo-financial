@@ -3,7 +3,12 @@
 from typing import Any, Type
 from pydantic import BaseModel, Field
 from langchain.tools import BaseTool
+from sqlalchemy import select, or_
+from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+import asyncio
+
+from app.database.models import Robot, Industry
 
 logger = structlog.get_logger()
 
@@ -45,97 +50,117 @@ class RobotCatalogTool(BaseTool):
         Returns:
             dict: Matching robots
         """
-        # TODO: Replace with actual database query
-        # For now, return mock data
+        # Use asyncio to run the async database query
+        return asyncio.run(self._async_run(query, category, use_case, max_results))
 
-        mock_robots = [
-            {
-                "id": "r1",
-                "name": "Mobile Shelf AMR",
-                "manufacturer": "Locus Robotics",
-                "category": "AMR",
-                "description": "Autonomous mobile robot for warehouse order picking",
-                "use_case": "logistics",
-                "payload": "500 lbs",
-                "lease_from": "$1,299/month",
-                "specifications": {
-                    "autonomy_level": "Level 4",
-                    "battery_life": "8 hours",
-                    "charging_time": "1 hour",
-                },
-            },
-            {
-                "id": "r2",
-                "name": "Heavy Duty Pallet Bot",
-                "manufacturer": "Fetch Robotics",
-                "category": "AGV",
-                "description": "Industrial pallet mover for heavy loads",
-                "use_case": "logistics",
-                "payload": "3,000 lbs",
-                "lease_from": "$2,499/month",
-                "specifications": {
-                    "autonomy_level": "Level 4",
-                    "battery_life": "10 hours",
-                    "max_speed": "3 mph",
-                },
-            },
-            {
-                "id": "r3",
-                "name": "Agricultural Spray Drone",
-                "manufacturer": "DJI Agras",
-                "category": "Drone",
-                "description": "Precision crop spraying drone",
-                "use_case": "agriculture",
-                "payload": "10 gallons",
-                "lease_from": "$899/month",
-                "specifications": {
-                    "autonomy_level": "Level 3",
-                    "flight_time": "20 minutes",
-                    "coverage_rate": "40 acres/hour",
-                },
-            },
-        ]
+    async def _async_run(
+        self,
+        query: str,
+        category: str = "",
+        use_case: str = "",
+        max_results: int = 5,
+    ) -> dict[str, Any]:
+        """Execute robot catalog search (async implementation).
 
-        # Filter by query
-        query_lower = query.lower()
-        filtered = [
-            r for r in mock_robots
-            if query_lower in r["name"].lower()
-            or query_lower in r["description"].lower()
-            or query_lower in r["manufacturer"].lower()
-        ]
+        Args:
+            query: Search query
+            category: Category filter
+            use_case: Use case filter
+            max_results: Max results
 
-        # Filter by category
-        if category:
-            filtered = [
-                r for r in filtered
-                if r["category"].lower() == category.lower()
-            ]
+        Returns:
+            dict: Matching robots
+        """
+        from app.database.session import async_session_maker
 
-        # Filter by use case
-        if use_case:
-            filtered = [
-                r for r in filtered
-                if r["use_case"].lower() == use_case.lower()
-            ]
+        async with async_session_maker() as session:
+            try:
+                # Build query for active robots
+                db_query = select(Robot).where(Robot.is_active == True)
 
-        # Limit results
-        filtered = filtered[:max_results]
+                # Add text search filters (name, description, manufacturer)
+                if query:
+                    query_lower = query.lower()
+                    db_query = db_query.where(
+                        or_(
+                            Robot.name.ilike(f"%{query_lower}%"),
+                            Robot.description.ilike(f"%{query_lower}%"),
+                            Robot.manufacturer.ilike(f"%{query_lower}%"),
+                        )
+                    )
 
-        logger.info(
-            "robot_search_completed",
-            query=query,
-            category=category,
-            use_case=use_case,
-            results_count=len(filtered),
-        )
+                # Filter by category
+                if category:
+                    db_query = db_query.where(Robot.category.ilike(f"%{category}%"))
 
-        return {
-            "robots": filtered,
-            "total_found": len(filtered),
-            "search_params": {
-                "query": query,
-                "category": category,
-                "use_case": use_case,
-            },
-        }
+                # Filter by use_case (Industry enum)
+                if use_case:
+                    try:
+                        # Try to match as enum value
+                        use_case_enum = Industry[use_case.upper()]
+                        db_query = db_query.where(Robot.use_case == use_case_enum)
+                    except KeyError:
+                        # If not exact match, try partial match
+                        db_query = db_query.where(
+                            Robot.use_case.cast(str).ilike(f"%{use_case}%")
+                        )
+
+                # Limit results
+                db_query = db_query.limit(max_results)
+
+                # Execute query
+                result = await session.execute(db_query)
+                robots = result.scalars().all()
+
+                # Format results
+                formatted_robots = []
+                for robot in robots:
+                    formatted_robots.append({
+                        "id": str(robot.id),
+                        "name": robot.name,
+                        "manufacturer": robot.manufacturer,
+                        "category": robot.category,
+                        "description": robot.description,
+                        "use_case": robot.use_case.value if robot.use_case else None,
+                        "payload": robot.payload,
+                        "autonomy_level": robot.autonomy_level,
+                        "lease_from": robot.lease_from,
+                        "lease_price_monthly": robot.lease_price_monthly,
+                        "specifications": robot.specifications,
+                        "image_url": robot.image_url,
+                    })
+
+                logger.info(
+                    "robot_search_completed",
+                    query=query,
+                    category=category,
+                    use_case=use_case,
+                    results_count=len(formatted_robots),
+                )
+
+                return {
+                    "robots": formatted_robots,
+                    "total_found": len(formatted_robots),
+                    "search_params": {
+                        "query": query,
+                        "category": category,
+                        "use_case": use_case,
+                    },
+                }
+
+            except Exception as e:
+                logger.error(
+                    "robot_search_error",
+                    error=str(e),
+                    query=query,
+                )
+                return {
+                    "robots": [],
+                    "total_found": 0,
+                    "search_params": {
+                        "query": query,
+                        "category": category,
+                        "use_case": use_case,
+                    },
+                    "error": str(e),
+                }

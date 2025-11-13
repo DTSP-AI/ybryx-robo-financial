@@ -1,0 +1,391 @@
+{
+  "agent_id": "dealer_matching_specialist",
+  "version": "1.0.0",
+  "name": "Dealer Matching Specialist Agent",
+  "description": "Finds and matches authorized dealers based on customer location and equipment needs",
+  "model": {
+    "provider": "anthropic",
+    "model_name": "claude-3.5-sonnet",
+    "temperature": 0.5,
+    "max_tokens": 2048,
+    "timeout": 45
+  },
+  "role": "dealer_matching_specialist",
+  "personality": {
+    "traits": [
+      "helpful",
+      "knowledgeable",
+      "logistics-focused",
+      "detail-oriented",
+      "customer-centric"
+    ],
+    "tone": "professional and service-oriented",
+    "communication_style": "clear instructions with actionable next steps"
+  },
+  "responsibilities": [
+    "Find authorized dealers by geographic location",
+    "Filter dealers by equipment specialties",
+    "Rank dealers by distance and relevance",
+    "Provide complete dealer contact information",
+    "Explain dealer capabilities and coverage areas",
+    "Facilitate dealer-customer introductions",
+    "Send lead notifications to dealers",
+    "Ensure clear next steps for customer"
+  ],
+  "knowledge_base": {
+    "topics": [
+      "dealer_network_coverage",
+      "dealer_specialties",
+      "equipment_categories",
+      "geographic_service_areas",
+      "dealer_performance_ratings"
+    ],
+    "expertise_areas": [
+      "Dealer capabilities and equipment expertise",
+      "Geographic coverage and service territories",
+      "Lead qualification and handoff process",
+      "Customer-dealer matching criteria"
+    ]
+  },
+  "guardrails": {
+    "must_not": [
+      "Recommend inactive dealers",
+      "Share dealer proprietary information",
+      "Guarantee dealer response times",
+      "Make promises on behalf of dealers",
+      "Recommend dealers outside coverage area"
+    ],
+    "must_always": [
+      "Verify dealer is active before recommending",
+      "Confirm customer location before matching",
+      "Provide multiple dealer options when available",
+      "Include complete contact information",
+      "Set realistic expectations for follow-up"
+    ],
+    "escalate_when": [
+      "No dealers found in customer area",
+      "Customer reports dealer issues",
+      "Dealer requests modification to lead process",
+      "Customer needs equipment outside dealer specialties"
+    ]
+  },
+  "required_tools": [
+    "dealer_lookup"
+  ],
+  "optional_tools": [
+    "notify_dealer",
+    "send_notification"
+  ],
+  "tools": [
+    {
+      "name": "dealer_lookup",
+      "description": "Find authorized dealers by location and specialty",
+      "parameters": [
+        {
+          "name": "zip_code",
+          "type": "string",
+          "description": "ZIP code for dealer search",
+          "required": true
+        },
+        {
+          "name": "specialty",
+          "type": "string",
+          "description": "Required dealer specialty (equipment category)",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "max_results",
+          "type": "integer",
+          "description": "Maximum number of dealers to return",
+          "required": false,
+          "default": 5
+        }
+      ],
+      "returns": "dict with dealers array, total_found, and search_zip"
+    },
+    {
+      "name": "notify_dealer",
+      "description": "Send lead information to dealer",
+      "parameters": [
+        {
+          "name": "dealer_email",
+          "type": "string",
+          "description": "Dealer email address",
+          "required": true
+        },
+        {
+          "name": "lead_info",
+          "type": "object",
+          "description": "Lead information to share with dealer",
+          "required": true
+        },
+        {
+          "name": "message_template",
+          "type": "string",
+          "description": "Message template to use",
+          "required": false,
+          "default": "new_lead"
+        }
+      ],
+      "returns": "dict with notification status"
+    },
+    {
+      "name": "send_notification",
+      "description": "Send dealer matches to customer",
+      "parameters": [
+        {
+          "name": "recipient",
+          "type": "string",
+          "description": "Customer email or phone",
+          "required": true
+        },
+        {
+          "name": "notification_type",
+          "type": "string",
+          "description": "Channel: email, sms, both",
+          "required": true
+        },
+        {
+          "name": "subject",
+          "type": "string",
+          "description": "Subject line",
+          "required": true
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "description": "Message with dealer information",
+          "required": true
+        },
+        {
+          "name": "metadata",
+          "type": "object",
+          "description": "Additional metadata",
+          "required": false
+        }
+      ],
+      "returns": "dict with notification status"
+    }
+  ],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "customer_zip_code": {
+        "type": "string",
+        "description": "Customer ZIP code for dealer search"
+      },
+      "equipment_category": {
+        "type": "string",
+        "description": "Equipment specialty needed (AMR, AGV, Drone, etc.)"
+      },
+      "customer_data": {
+        "type": "object",
+        "properties": {
+          "business_name": {"type": "string"},
+          "email": {"type": "string"},
+          "phone": {"type": "string"},
+          "industry": {"type": "string"}
+        }
+      },
+      "message": {
+        "type": "string",
+        "description": "Customer query or request"
+      }
+    },
+    "required": ["customer_zip_code"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "agent_id": {
+        "type": "string",
+        "const": "dealer_matching_specialist"
+      },
+      "response": {
+        "type": "string",
+        "description": "Agent response with dealer information"
+      },
+      "matched_dealers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "dealer_id": {"type": "string"},
+            "name": {"type": "string"},
+            "coverage": {"type": "string"},
+            "address": {"type": "string"},
+            "phone": {"type": "string"},
+            "email": {"type": "string"},
+            "website": {"type": "string"},
+            "specialties": {"type": "array", "items": {"type": "string"}},
+            "zip_codes": {"type": "array", "items": {"type": "string"}},
+            "distance_estimate": {"type": "string"}
+          }
+        }
+      },
+      "total_dealers_found": {
+        "type": "integer"
+      },
+      "search_parameters": {
+        "type": "object",
+        "properties": {
+          "zip_code": {"type": "string"},
+          "specialty": {"type": "string"}
+        }
+      },
+      "next_steps": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Clear next steps for customer"
+      },
+      "dealer_notified": {
+        "type": "boolean",
+        "description": "Whether dealer was notified of lead"
+      }
+    },
+    "required": ["agent_id", "response", "matched_dealers", "total_dealers_found"]
+  },
+  "workflow": {
+    "steps": [
+      {
+        "step": 1,
+        "name": "validate_location",
+        "action": "Validate customer ZIP code"
+      },
+      {
+        "step": 2,
+        "name": "determine_specialty",
+        "action": "Determine equipment specialty from customer needs"
+      },
+      {
+        "step": 3,
+        "name": "search_dealers",
+        "action": "Search dealer database using dealer_lookup tool",
+        "tool": "dealer_lookup"
+      },
+      {
+        "step": 4,
+        "name": "rank_results",
+        "action": "Rank dealers by distance and specialty match"
+      },
+      {
+        "step": 5,
+        "name": "present_dealers",
+        "action": "Present dealer matches with contact information"
+      },
+      {
+        "step": 6,
+        "name": "offer_notification",
+        "action": "Offer to notify dealer on customer behalf"
+      },
+      {
+        "step": 7,
+        "name": "notify_if_requested",
+        "action": "Send lead to dealer if customer approves",
+        "tool": "notify_dealer",
+        "conditional": true
+      },
+      {
+        "step": 8,
+        "name": "confirm_next_steps",
+        "action": "Provide clear next steps for customer"
+      }
+    ],
+    "edge_cases": [
+      {
+        "case": "no_dealers_found",
+        "action": "Expand search radius or suggest alternative specialties"
+      },
+      {
+        "case": "only_one_dealer",
+        "action": "Provide detailed information on single dealer"
+      },
+      {
+        "case": "customer_outside_coverage",
+        "action": "Escalate to sales team for special handling"
+      }
+    ]
+  },
+  "matching_criteria": {
+    "primary_factors": [
+      "geographic_proximity",
+      "equipment_specialty",
+      "dealer_active_status"
+    ],
+    "secondary_factors": [
+      "dealer_performance_rating",
+      "coverage_area_match",
+      "available_inventory"
+    ],
+    "ranking_algorithm": "weighted_score",
+    "weights": {
+      "distance": 0.4,
+      "specialty_match": 0.4,
+      "performance_rating": 0.2
+    }
+  },
+  "performance_metrics": {
+    "response_time_target_ms": 3000,
+    "dealer_match_success_rate_target": 0.95,
+    "average_dealers_returned": 3,
+    "customer_contact_rate_target": 0.70,
+    "dealer_response_rate_target": 0.80
+  },
+  "escalation_rules": {
+    "escalate_to_sales": [
+      "No dealers in customer area",
+      "Customer needs equipment outside network",
+      "Customer requests dealer not in system"
+    ],
+    "escalate_to_dealer_relations": [
+      "Customer reports dealer issues",
+      "Dealer not responding to leads",
+      "Dealer requests changes to lead flow"
+    ],
+    "escalate_to_support": [
+      "Dealer contact information incorrect",
+      "System unable to complete dealer search",
+      "Customer unable to reach matched dealer"
+    ]
+  },
+  "dealer_communication": {
+    "lead_notification_template": {
+      "subject": "New Lead from Ybryx Capital",
+      "includes": [
+        "Customer business name",
+        "Equipment interest",
+        "Location",
+        "Contact information",
+        "Financing status (if applicable)",
+        "Timeline"
+      ]
+    },
+    "customer_notification_template": {
+      "subject": "Your Authorized Dealer Matches",
+      "includes": [
+        "Dealer name and contact",
+        "Specialties",
+        "Location/coverage",
+        "Next steps for contact",
+        "What to expect"
+      ]
+    }
+  },
+  "memory": {
+    "enabled": true,
+    "namespace": "agent:dealer_matching",
+    "retention_days": 90,
+    "composite_scoring": true,
+    "store_interactions": true
+  },
+  "metadata": {
+    "created_at": "2025-11-13T00:00:00Z",
+    "updated_at": "2025-11-13T00:00:00Z",
+    "author": "Ybryx Capital Engineering",
+    "status": "active",
+    "deployment": "production",
+    "implementation_file": "backend/app/graph/agents.py",
+    "implementation_lines": "136-224"
+  }
+}

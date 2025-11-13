@@ -3,7 +3,12 @@
 from typing import Any, Type
 from pydantic import BaseModel, Field
 from langchain.tools import BaseTool
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+import asyncio
+
+from app.database.models import Dealer
 
 logger = structlog.get_logger()
 
@@ -42,56 +47,87 @@ class DealerLookupTool(BaseTool):
         Returns:
             dict: Matching dealers
         """
-        # TODO: Replace with actual database query
-        # For now, return mock data
+        # Use asyncio to run the async database query
+        return asyncio.run(self._async_run(zip_code, specialty, max_results))
 
-        mock_dealers = [
-            {
-                "id": "d1",
-                "name": "RoboTech Solutions",
-                "zip_codes": ["94105", "94102", "94103"],
-                "specialties": ["AMRs", "AGVs", "Warehouse Automation"],
-                "phone": "(415) 555-0123",
-                "email": "sales@robotechsolutions.com",
-                "distance_miles": 2.5,
-            },
-            {
-                "id": "d2",
-                "name": "Industrial Automation Partners",
-                "zip_codes": ["94104", "94105", "94108"],
-                "specialties": ["Robotic Arms", "Manufacturing", "Assembly Lines"],
-                "phone": "(415) 555-0456",
-                "email": "contact@indautopartners.com",
-                "distance_miles": 3.2,
-            },
-        ]
+    async def _async_run(
+        self,
+        zip_code: str,
+        specialty: str = "",
+        max_results: int = 5,
+    ) -> dict[str, Any]:
+        """Execute dealer lookup (async implementation).
 
-        # Simple filtering based on ZIP prefix
-        zip_prefix = zip_code[:3]
-        filtered_dealers = [
-            d for d in mock_dealers
-            if any(zc.startswith(zip_prefix) for zc in d["zip_codes"])
-        ]
+        Args:
+            zip_code: ZIP code to search near
+            specialty: Optional specialty filter
+            max_results: Maximum dealers to return
 
-        # Filter by specialty if provided
-        if specialty:
-            filtered_dealers = [
-                d for d in filtered_dealers
-                if any(specialty.lower() in s.lower() for s in d["specialties"])
-            ]
+        Returns:
+            dict: Matching dealers
+        """
+        from app.database.session import async_session_maker
 
-        # Limit results
-        filtered_dealers = filtered_dealers[:max_results]
+        async with async_session_maker() as session:
+            try:
+                # Build query for active dealers
+                query = select(Dealer).where(Dealer.is_active == True)
 
-        logger.info(
-            "dealer_lookup_completed",
-            zip_code=zip_code,
-            specialty=specialty,
-            results_count=len(filtered_dealers),
-        )
+                # Execute query
+                result = await session.execute(query)
+                all_dealers = result.scalars().all()
 
-        return {
-            "dealers": filtered_dealers,
-            "total_found": len(filtered_dealers),
-            "search_zip": zip_code,
-        }
+                # Filter by ZIP code (check if zip_code is in dealer's zip_codes array)
+                zip_prefix = zip_code[:3]
+                filtered_dealers = []
+
+                for dealer in all_dealers:
+                    # Check if any of the dealer's zip codes match the prefix
+                    zip_codes = dealer.zip_codes if dealer.zip_codes else []
+                    if any(str(zc).startswith(zip_prefix) for zc in zip_codes):
+                        # Filter by specialty if provided
+                        if specialty:
+                            specialties = dealer.specialties if dealer.specialties else []
+                            if not any(specialty.lower() in str(s).lower() for s in specialties):
+                                continue
+
+                        filtered_dealers.append({
+                            "id": str(dealer.id),
+                            "name": dealer.name,
+                            "coverage": dealer.coverage,
+                            "address": dealer.address,
+                            "phone": dealer.phone,
+                            "email": dealer.email,
+                            "website": dealer.website,
+                            "zip_codes": dealer.zip_codes,
+                            "specialties": dealer.specialties,
+                        })
+
+                # Limit results
+                filtered_dealers = filtered_dealers[:max_results]
+
+                logger.info(
+                    "dealer_lookup_completed",
+                    zip_code=zip_code,
+                    specialty=specialty,
+                    results_count=len(filtered_dealers),
+                )
+
+                return {
+                    "dealers": filtered_dealers,
+                    "total_found": len(filtered_dealers),
+                    "search_zip": zip_code,
+                }
+
+            except Exception as e:
+                logger.error(
+                    "dealer_lookup_error",
+                    error=str(e),
+                    zip_code=zip_code,
+                )
+                return {
+                    "dealers": [],
+                    "total_found": 0,
+                    "search_zip": zip_code,
+                    "error": str(e),
+                }

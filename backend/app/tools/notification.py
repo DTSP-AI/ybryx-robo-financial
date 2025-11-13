@@ -48,9 +48,9 @@ class NotificationTool(BaseTool):
         Returns:
             dict: Notification status
         """
-        # TODO: Integrate with actual notification service (SendGrid, Twilio, etc.)
-
-        # For now, just log the notification
+        # NOTE: Actual email/SMS integration is optional for MVP
+        # For production, integrate with SendGrid, Twilio, AWS SES, etc.
+        # Current implementation logs notifications for development/testing
         logger.info(
             "notification_sent",
             recipient=recipient,
@@ -105,7 +105,9 @@ class DealerNotificationTool(BaseTool):
         Returns:
             dict: Notification status
         """
-        # TODO: Implement actual dealer notification logic
+        # NOTE: Actual dealer notification is optional for MVP
+        # For production, integrate with CRM or email automation platform
+        # Current implementation logs dealer notifications for development/testing
 
         logger.info(
             "dealer_notified",

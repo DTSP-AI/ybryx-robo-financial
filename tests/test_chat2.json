@@ -1,0 +1,14 @@
+{
+  "message": "We need to move about 200 pallets per day and reduce manual labor costs.",
+  "session_id": "3f6b08a8-b466-458a-b11f-639a097d65f7",
+  "conversation_history": [
+    {
+      "role": "user",
+      "content": "Hi! I run a warehouse and I'm interested in leasing robots to automate order picking."
+    },
+    {
+      "role": "assistant",
+      "content": "Hi there! I'm Alex from Ybryx Capital. It's great to hear that you're interested in automating order picking in your warehouse! Could you share a bit more about your current challenges or what specific features you're looking for in the robots? This will help me guide you to the best options available."
+    }
+  ]
+}

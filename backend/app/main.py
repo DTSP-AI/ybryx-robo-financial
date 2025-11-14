@@ -53,7 +53,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("database_initialized")
 
     # TODO: Initialize Mem0 memory manager
-    # TODO: Initialize Redis connection pool
     # TODO: Warm up LLM connections
 
     yield

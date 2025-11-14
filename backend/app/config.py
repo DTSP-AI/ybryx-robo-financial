@@ -68,13 +68,6 @@ class Settings(BaseSettings):
     qdrant_url: Optional[str] = Field(default=None, validation_alias="QDRANT_URL")
     qdrant_api_key: Optional[str] = Field(default=None, validation_alias="QDRANT_API_KEY")
 
-    # Redis - For caching and task queue
-    redis_url: str = Field(
-        default="redis://localhost:6379/0",
-        validation_alias="REDIS_URL"
-    )
-    redis_cache_ttl: int = 3600  # 1 hour
-
     # Security
     secret_key: str = Field(
         default="dev-secret-key-change-in-production",

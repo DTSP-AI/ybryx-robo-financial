@@ -45,7 +45,7 @@ class ChatResponse(BaseModel):
     error: Optional[str] = None
 
 
-# In-memory session storage (use Redis in production)
+# In-memory session storage (use Supabase for production persistence)
 chat_sessions = {}
 
 
@@ -128,7 +128,7 @@ async def chat_with_sales_agent(request: ChatRequest):
         last_message = agent_messages[-1]
         agent_response = last_message.content if hasattr(last_message, 'content') else str(last_message)
 
-        # Store session (in production, use Redis with TTL)
+        # Store session (in production, use Supabase for persistence)
         chat_sessions[session_id] = {
             "messages": agent_messages,
             "last_activity": datetime.utcnow(),

@@ -20,21 +20,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    container_name: ybryx-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-
   # FastAPI Backend (Development)
   backend:
     build:
@@ -47,7 +32,6 @@ services:
       - ./backend/.env
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ybryx
-      - REDIS_URL=redis://redis:6379/0
       - DEBUG=True
     ports:
       - "8000:8000"
@@ -56,8 +40,6 @@ services:
       - backend_data:/app/data
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
@@ -98,7 +80,6 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
   backend_data:
   pgadmin_data:
 

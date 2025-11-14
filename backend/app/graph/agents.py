@@ -371,7 +371,8 @@ def create_sales_agent_node() -> callable:
     llm = ChatOpenAI(
         model=settings.openai_supervisor_model,  # gpt-5-nano
         temperature=0.7,  # Slightly higher for more conversational tone
-        max_tokens=500,  # Keep responses concise
+        max_completion_tokens=2000,  # GPT-5 requires max_completion_tokens (not max_tokens)
+        reasoning_effort="minimal",  # Optimizes GPT-5 for speed/chat (reduces reasoning overhead)
         api_key=settings.openai_api_key,
     )
 

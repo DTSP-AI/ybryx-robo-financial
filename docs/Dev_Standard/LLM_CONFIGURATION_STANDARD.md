@@ -56,6 +56,113 @@ OPENAI_SCRIPT_MODEL: str = "gpt-5-nano"  # Not used (Claude handles scripts, GPT
 
 ---
 
+## ⚙️ GPT-5 Nano Configuration Requirements
+
+**CRITICAL:** GPT-5 models (gpt-5-nano, gpt-5-mini, gpt-5) have different API requirements than GPT-4 models.
+
+### Required Parameters for GPT-5
+
+```python
+from langchain_openai import ChatOpenAI
+
+# ✅ Correct GPT-5 Configuration
+llm = ChatOpenAI(
+    model="gpt-5-nano",
+    temperature=0.7,
+    max_completion_tokens=2000,       # ✅ Use max_completion_tokens (NOT max_tokens)
+    reasoning_effort="minimal",        # ✅ Required for conversational tasks
+    api_key=settings.openai_api_key,
+)
+
+# ❌ Wrong GPT-5 Configuration (will return empty responses)
+llm = ChatOpenAI(
+    model="gpt-5-nano",
+    temperature=0.7,
+    max_tokens=500,                   # ❌ GPT-5 doesn't support max_tokens
+    api_key=settings.openai_api_key,  # ❌ Missing reasoning_effort parameter
+)
+```
+
+### Why These Parameters Are Required
+
+1. **`max_completion_tokens` instead of `max_tokens`:**
+   - GPT-5 API doesn't support the `max_tokens` parameter
+   - Using `max_tokens` causes HTTP 400 errors or is silently ignored
+   - Always use `max_completion_tokens` for GPT-5 models
+
+2. **`reasoning_effort="minimal"` for conversational tasks:**
+   - GPT-5 models spend tokens on "reasoning" before generating output
+   - Without this parameter, reasoning can consume 800+ tokens
+   - For chat/conversation: Use `reasoning_effort="minimal"`
+   - For complex analysis: Use `reasoning_effort="medium"` or `reasoning_effort="high"`
+
+3. **Token budget must be sufficient:**
+   - Minimum 2000 tokens recommended for GPT-5 Nano
+   - Reasoning overhead requires extra token budget
+   - 500 tokens is too small and causes empty responses
+
+### Common Issues and Solutions
+
+| Issue | Symptom | Solution |
+|-------|---------|----------|
+| Empty responses | `response.content = ""` | Add `reasoning_effort="minimal"` |
+| HTTP 400 error | `max_tokens not supported` | Change to `max_completion_tokens` |
+| Truncated output | Response cuts off mid-sentence | Increase `max_completion_tokens` to 2000+ |
+| Slow responses | Takes 10+ seconds | Use `reasoning_effort="minimal"` for chat |
+
+### GPT-5 Model Comparison
+
+| Model | Speed | Cost (per 1M tokens) | Best For |
+|-------|-------|---------------------|----------|
+| **gpt-5-nano** | Fastest | $0.05 input / $0.40 output | Chat, routing, simple tasks |
+| **gpt-5-mini** | Fast | $0.25 input / $2.00 output | Conversational agents, analysis |
+| **gpt-5** | Moderate | $5.00 input / $15.00 output | Complex reasoning, research |
+
+### Implementation Example (Sales Agent)
+
+**File:** `backend/app/graph/agents.py` (lines 370-377)
+
+```python
+def create_sales_agent_node() -> callable:
+    """Create sales agent node for landing page chat."""
+    llm = ChatOpenAI(
+        model=settings.openai_supervisor_model,  # gpt-5-nano
+        temperature=0.7,
+        max_completion_tokens=2000,  # GPT-5 requires max_completion_tokens
+        reasoning_effort="minimal",   # Optimizes for speed/chat
+        api_key=settings.openai_api_key,
+    )
+    # ... rest of implementation
+```
+
+### Debugging GPT-5 Empty Responses
+
+If you get empty responses (`response_length=0` in logs):
+
+1. **Check parameters:**
+   ```python
+   # Verify you're using max_completion_tokens
+   print(llm.model_kwargs)  # Should show max_completion_tokens, not max_tokens
+   ```
+
+2. **Add reasoning_effort:**
+   ```python
+   reasoning_effort="minimal"  # Critical for conversational use cases
+   ```
+
+3. **Increase token budget:**
+   ```python
+   max_completion_tokens=2000  # Minimum recommended for GPT-5 Nano
+   ```
+
+4. **Check backend logs:**
+   ```bash
+   docker logs ybryx-backend --tail 20 | grep "sales_agent_completed"
+   # Should show: response_length=1000+ (not 0)
+   ```
+
+---
+
 ## 📍 Implementation Locations
 
 ### 1. Video Script Generation (content_creation_agent.py + video_script_tool.py)

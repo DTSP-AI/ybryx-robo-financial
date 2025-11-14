@@ -44,6 +44,8 @@ class Settings(BaseSettings):
 
     # LLM Configuration - Priority Order
     # 1. OpenAI GPT-5-nano for supervisor/routing (fast, cost-effective)
+    #    NOTE: GPT-5 models require max_completion_tokens (not max_tokens)
+    #    and reasoning_effort="minimal" for conversational tasks
     # 2. Anthropic Claude for primary reasoning
     openai_api_key: str = Field(validation_alias="OPENAI_API_KEY")
     openai_org_id: Optional[str] = Field(default=None, validation_alias="OPENAI_ORG_ID")

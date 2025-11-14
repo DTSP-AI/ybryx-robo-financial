@@ -510,7 +510,7 @@ confidence_adjustment = memory_context.reinforcement_adjustments.get('confidence
 temperature = max(0.0, min(1.0, temperature + confidence_adjustment))
 
 llm = ChatOpenAI(
-    model=state.get("model", "gpt-4o-mini"),
+    model=state.get("model", "gpt-5-nano"),
     temperature=temperature,
     max_tokens=max_tokens,
     openai_api_key=settings.OPENAI_API_KEY
@@ -913,7 +913,7 @@ invoke_request = {
     "traits": agent_request["traits"],  # Pass traits
     "voice_id": "21m00Tcm4TlvDq8ikWAM",
     "tts_enabled": False,
-    "model": "gpt-4o-mini"
+    "model": "gpt-5-nano"
 }
 
 response = requests.post(
@@ -1107,7 +1107,7 @@ async def startup():
    "model": "gpt-5-nano"  # Doesn't exist
 
    # ✅ Correct
-   "model": "gpt-4o-mini"
+   "model": "gpt-5-nano"
    ```
 
 2. **Memory Namespace Isolation Failure**
@@ -1178,7 +1178,7 @@ async def startup():
 
    # Solution: Provide OpenAI key for Mem0 embeddings
    config = {
-       "llm": {"provider": "openai", "config": {"model": "gpt-4o-mini", "api_key": settings.OPENAI_API_KEY}},
+       "llm": {"provider": "openai", "config": {"model": "gpt-5-nano", "api_key": settings.OPENAI_API_KEY}},
        "embedder": {"provider": "openai", "config": {"model": "text-embedding-3-small", "api_key": settings.OPENAI_API_KEY}}
    }
    self.persistent = Memory(config=config)
@@ -1321,7 +1321,7 @@ async def generate_agent_response(state: Dict[str, Any]) -> str:
         logger.info(f"LLM config: model={state.get('model', 'gpt-4o-mini')}, temp={temperature:.2f}, max_tokens={max_tokens}")
 
         llm = ChatOpenAI(
-            model=state.get("model", "gpt-4o-mini"),
+            model=state.get("model", "gpt-5-nano"),
             temperature=temperature,
             max_tokens=max_tokens,
             openai_api_key=settings.OPENAI_API_KEY

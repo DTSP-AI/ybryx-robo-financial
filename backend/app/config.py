@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     supabase_service_key: Optional[str] = Field(default=None, validation_alias="SUPABASE_SERVICE_KEY")
 
     # LLM Configuration - Priority Order
-    # 1. OpenAI GPT-5-nano for supervisor/routing
+    # 1. OpenAI GPT-5-nano for supervisor/routing (fast, cost-effective)
     # 2. Anthropic Claude for primary reasoning
     openai_api_key: str = Field(validation_alias="OPENAI_API_KEY")
     openai_org_id: Optional[str] = Field(default=None, validation_alias="OPENAI_ORG_ID")

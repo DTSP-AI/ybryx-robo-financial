@@ -96,7 +96,7 @@ Every agent begins with a JSON contract that defines its complete identity and b
 
   "configuration": {
     "llm_provider": "openai|anthropic|xai|local",
-    "llm_model": "gpt-4o-mini",
+    "llm_model": "gpt-5-nano",
     "max_tokens": 500,
     "temperature": 0.7,
     "memory_enabled": true,
@@ -223,7 +223,7 @@ class AgentIdentity(BaseModel):
 
 class AgentConfiguration(BaseModel):
     llm_provider: str = "openai"
-    llm_model: str = "gpt-4o-mini"
+    llm_model: str = "gpt-5-nano"
     max_tokens: int = Field(ge=50, le=4000, default=500)
     temperature: float = Field(ge=0.0, le=2.0, default=0.7)
     memory_enabled: bool = True

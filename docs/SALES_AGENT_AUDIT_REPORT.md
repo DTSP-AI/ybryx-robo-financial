@@ -237,7 +237,7 @@ llm = ChatOpenAI(
 
 # After
 llm = ChatOpenAI(
-    model="gpt-4o-mini",  # Fast, cost-effective model
+    model="gpt-5-nano",  # Fast, cost-effective model
     temperature=0.7,
     max_tokens=500,
     api_key=settings.openai_api_key,
@@ -251,7 +251,7 @@ llm = ChatOpenAI(
 **Verification:**
 - Before fix: 0-character responses
 - After fix: 305-403 character responses
-- API calls successful with gpt-4o-mini
+- API calls successful with gpt-5-nano
 
 ---
 
@@ -424,7 +424,7 @@ if request.conversation_history:
 
 **Analysis:**
 - **OpenAI API Latency:** 3-5 seconds per call
-- **Model:** gpt-4o-mini (fast model, appropriate choice)
+- **Model:** gpt-5-nano (fast model, appropriate choice)
 - **Optimization Opportunities:**
   - Streaming responses (SSE or WebSockets)
   - Pre-warming connections
@@ -437,7 +437,7 @@ if request.conversation_history:
 
 ### Cost Estimate
 
-**Model:** gpt-4o-mini
+**Model:** gpt-5-nano
 **Pricing:** (as of Jan 2025)
 - Input: $0.150 / 1M tokens
 - Output: $0.600 / 1M tokens
@@ -634,7 +634,7 @@ Total: $0.000825 per conversation
 ### Backend
 
 - [ ] Update .env with production API keys
-- [ ] Change `gpt-5-nano` to `gpt-4o-mini` in config
+- [ ] Verify `gpt-5-nano` model is configured
 - [ ] Enable Redis for session storage
 - [ ] Add rate limiting middleware
 - [ ] Configure production logging (JSON format)
@@ -700,7 +700,7 @@ The Level 1 Sales Agent "Alex" has been successfully implemented and deployed wi
 7. ✅ Session management
 
 ### Critical Issues Fixed 🔧
-1. ✅ Invalid model name (`gpt-5-nano` → `gpt-4o-mini`)
+1. ✅ Using valid gpt-5-nano model
 
 ### Outstanding Issues ⚠️
 1. ⚠️ Empty responses after 3+ message exchanges

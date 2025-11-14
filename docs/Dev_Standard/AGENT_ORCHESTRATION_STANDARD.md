@@ -596,7 +596,7 @@ def search_database(query: str) -> str:
     return f"Database results for: {query}"
 
 # Bind tools to LLM
-llm = ChatOpenAI(model="gpt-4o-mini")
+llm = ChatOpenAI(model="gpt-5-nano")
 llm_with_tools = llm.bind_tools([get_weather, search_database])
 ```
 
@@ -612,7 +612,7 @@ from langchain_openai import ChatOpenAI
 tools = [get_weather, search_database]
 
 # Create LLM with tools
-llm = ChatOpenAI(model="gpt-4o-mini")
+llm = ChatOpenAI(model="gpt-5-nano")
 llm_with_tools = llm.bind_tools(tools)
 
 # Create tool execution node
@@ -694,7 +694,7 @@ from langchain_openai import ChatOpenAI
 tools = [get_weather, search_database, calculate]
 
 # Create ReAct agent (automatic tool use + reasoning)
-llm = ChatOpenAI(model="gpt-4o-mini")
+llm = ChatOpenAI(model="gpt-5-nano")
 agent = create_react_agent(llm, tools)
 
 # Use in graph
@@ -762,7 +762,7 @@ from langchain_openai import ChatOpenAI
 
 def create_worker_agent(name: str, tools: List):
     """Create a worker agent with tools"""
-    llm = ChatOpenAI(model="gpt-4o-mini")
+    llm = ChatOpenAI(model="gpt-5-nano")
     system_prompt = f"You are {name}. Your job is to use tools to help with the task."
 
     return create_react_agent(
@@ -1041,7 +1041,7 @@ async def invoke_llm_node(state: AgentState) -> Dict[str, Any]:
     # Get LLM config
     config = state["configuration"]
     llm_provider = config.get("llm_provider", "openai")
-    llm_model = config.get("llm_model", "gpt-4o-mini")
+    llm_model = config.get("llm_model", "gpt-5-nano")
     temperature = config.get("temperature", 0.7)
     max_tokens = config.get("max_tokens", 500)
 
@@ -1525,7 +1525,7 @@ async def invoke_llm(state: AgentState) -> Dict[str, Any]:
     """Node 3: Invoke LLM"""
     config = state["configuration"]
     llm = ChatOpenAI(
-        model=config.get("llm_model", "gpt-4o-mini"),
+        model=config.get("llm_model", "gpt-5-nano"),
         temperature=config.get("temperature", 0.7),
         max_tokens=config.get("max_tokens", 500)
     )

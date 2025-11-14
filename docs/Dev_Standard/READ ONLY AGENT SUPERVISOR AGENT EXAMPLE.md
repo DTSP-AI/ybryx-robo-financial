@@ -108,7 +108,7 @@ else:
 
 memory = InMemoryChatMessageHistory(return_messages=True)
 llm = ChatOpenAI(
-    model="gpt-4o-mini",      # Customize model
+    model="gpt-5-nano",       # Customize model
     max_tokens=1024,          # Customize max tokens
     temperature=0.9           # Customize temperature
 )

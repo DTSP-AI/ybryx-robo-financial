@@ -1,7 +1,7 @@
 """Application configuration using pydantic-settings."""
 
 from typing import Literal, Optional
-from pydantic import Field, PostgresDsn, field_validator
+from pydantic import Field, PostgresDsn, field_validator, AliasChoices
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -40,7 +40,10 @@ class Settings(BaseSettings):
     # Supabase
     supabase_url: Optional[str] = Field(default=None, validation_alias="SUPABASE_URL")
     supabase_key: Optional[str] = Field(default=None, validation_alias="SUPABASE_ANON_KEY")
-    supabase_service_key: Optional[str] = Field(default=None, validation_alias="SUPABASE_SERVICE_KEY")
+    supabase_service_key: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("SUPABASE_SERVICE_KEY", "SUPABASE_SERVICE_ROLE_KEY")
+    )
 
     # LLM Configuration - Priority Order
     # 1. OpenAI GPT-5-nano for supervisor/routing (fast, cost-effective)

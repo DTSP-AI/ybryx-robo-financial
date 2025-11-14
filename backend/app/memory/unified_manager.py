@@ -156,8 +156,9 @@ class MemoryManager:
             embedding_dimensions: Embedding vector dimensions
         """
         # Load from environment if not provided
+        # Accept both SUPABASE_SERVICE_KEY and SUPABASE_SERVICE_ROLE_KEY for compatibility
         self.supabase_url = supabase_url or os.getenv("SUPABASE_URL")
-        self.supabase_key = supabase_key or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        self.supabase_key = supabase_key or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SERVICE_KEY")
         self.mem0_api_key = mem0_api_key or os.getenv("MEM0_API_KEY")
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
 
@@ -177,18 +178,35 @@ class MemoryManager:
         )
 
     def _init_supabase(self) -> None:
-        """Initialize Supabase client."""
+        """Initialize Supabase client with startup validation."""
         if not self.supabase_url or not self.supabase_key:
             logger.warning(
                 "supabase_not_configured",
-                message="SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set"
+                message="SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY/SUPABASE_SERVICE_KEY not set",
+                has_url=bool(self.supabase_url),
+                has_key=bool(self.supabase_key),
             )
             self.supabase: Optional[SupabaseClient] = None
             return
 
         try:
             self.supabase = create_client(self.supabase_url, self.supabase_key)
-            logger.info("supabase_client_initialized")
+
+            # Startup validation: Test connection by querying sessions table
+            try:
+                test_query = self.supabase.table("sessions").select("id").limit(1).execute()
+                logger.info(
+                    "supabase_client_initialized",
+                    connection_validated=True,
+                    url=self.supabase_url[:30] + "..."
+                )
+            except Exception as test_error:
+                logger.warning(
+                    "supabase_validation_failed",
+                    error=str(test_error),
+                    message="Supabase client created but test query failed - check schema/permissions"
+                )
+
         except Exception as e:
             logger.error("supabase_initialization_failed", error=str(e), exc_info=True)
             self.supabase = None
@@ -253,6 +271,65 @@ class MemoryManager:
             return embedding
         except Exception as e:
             logger.error("embedding_generation_failed", error=str(e), exc_info=True)
+            return None
+
+    # ========================================================================
+    # SESSION MANAGEMENT HELPERS
+    # ========================================================================
+
+    async def resolve_session_uuid(
+        self,
+        session_id: str,
+        user_id: Optional[str] = None,
+        agent_name: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Resolve a session_id string to its Supabase UUID primary key.
+
+        Creates the session if it doesn't exist. This ensures foreign key
+        constraints are satisfied when writing to memory_logs.
+
+        Args:
+            session_id: External session identifier (string)
+            user_id: Optional user ID (can be null)
+            agent_name: Optional agent name
+
+        Returns:
+            UUID string from sessions.id, or None if Supabase unavailable
+        """
+        if not self.supabase:
+            logger.debug("session_resolution_skipped_no_supabase")
+            return None
+
+        try:
+            # Try to find existing session
+            response = self.supabase.table("sessions").select("id").eq("session_id", session_id).limit(1).execute()
+
+            if response.data and len(response.data) > 0:
+                uuid = response.data[0]["id"]
+                logger.debug("session_uuid_resolved", session_id=session_id, uuid=uuid)
+                return uuid
+
+            # Session doesn't exist - create it
+            session_data = {
+                "session_id": session_id,
+                "user_id": user_id,  # Nullable FK
+                "agent_name": agent_name or "unknown",
+                "status": "active",
+            }
+
+            create_response = self.supabase.table("sessions").insert(session_data).execute()
+
+            if create_response.data and len(create_response.data) > 0:
+                uuid = create_response.data[0]["id"]
+                logger.info("session_created", session_id=session_id, uuid=uuid, user_id=user_id)
+                return uuid
+
+            logger.warning("session_creation_failed_no_data", session_id=session_id)
+            return None
+
+        except Exception as e:
+            logger.error("session_resolution_failed", error=str(e), session_id=session_id, exc_info=True)
             return None
 
     # ========================================================================
@@ -428,24 +505,14 @@ class MemoryManager:
             content_text = str(payload.get("content", ""))
             agent_name = payload.get("agent", "unknown")
 
-            # 1. Write to Supabase (structured log)
-            if self.supabase:
-                memory_log = {
-                    "user_id": user_id,
-                    "session_id": session_id,  # This should reference the sessions table UUID
-                    "agent_name": agent_name,
-                    "operation_type": "write",
-                    "memory_type": memory_type,
-                    "content": content_text,
-                    "tags": tags or [],
-                    "metadata": payload,
-                }
+            # 0. Resolve session UUID for FK constraint
+            session_uuid = await self.resolve_session_uuid(
+                session_id=session_id,
+                user_id=user_id,
+                agent_name=agent_name
+            )
 
-                supabase_response = self.supabase.table("memory_logs").insert(memory_log).execute()
-                if supabase_response.data:
-                    result["supabase_id"] = supabase_response.data[0].get("id")
-
-            # 2. Write to Mem0 (vector)
+            # 1. Write to Mem0 (vector) FIRST to get vector_id
             if self.mem0:
                 try:
                     mem0_metadata = {
@@ -471,6 +538,24 @@ class MemoryManager:
 
                 except Exception as e:
                     logger.error("mem0_write_failed", error=str(e))
+
+            # 2. Write to Supabase (structured log) with vector_id
+            if self.supabase and session_uuid:
+                memory_log = {
+                    "user_id": user_id,
+                    "session_id": session_uuid,  # Use resolved UUID for FK constraint
+                    "agent_name": agent_name,
+                    "operation_type": "write",
+                    "memory_type": memory_type,
+                    "content": content_text,
+                    "tags": tags or [],
+                    "metadata": payload,
+                    "vector_id": result.get("mem0_id"),  # Link to Mem0 vector for recall
+                }
+
+                supabase_response = self.supabase.table("memory_logs").insert(memory_log).execute()
+                if supabase_response.data:
+                    result["supabase_id"] = supabase_response.data[0].get("id")
 
             # 3. Audit log
             await self.log_event(
@@ -621,7 +706,7 @@ class MemoryManager:
             data: Event data
             event_category: Category (memory, agent, security, etc.)
             severity: Severity level
-            session_id: Optional session ID
+            session_id: Optional session ID (will be resolved to UUID if provided)
             agent_name: Optional agent name
         """
         if not self.supabase:
@@ -629,9 +714,18 @@ class MemoryManager:
             return
 
         try:
+            # Resolve session UUID if session_id provided
+            session_uuid = None
+            if session_id:
+                session_uuid = await self.resolve_session_uuid(
+                    session_id=session_id,
+                    user_id=user_id,
+                    agent_name=agent_name
+                )
+
             audit_entry = {
                 "user_id": user_id,
-                "session_id": session_id,
+                "session_id": session_uuid,  # Use resolved UUID for FK constraint
                 "agent_name": agent_name,
                 "event_type": event_type,
                 "event_category": event_category,
@@ -816,7 +910,7 @@ class MemoryManager:
 
         Args:
             user_id: User identifier
-            session_id: Session identifier
+            session_id: Session identifier (will be resolved to UUID)
             agent_name: Agent name
             execution_id: Unique execution ID
             input_payload: Input data
@@ -830,9 +924,16 @@ class MemoryManager:
         if not self.supabase:
             return ""
 
+        # Resolve session UUID for FK constraint
+        session_uuid = await self.resolve_session_uuid(
+            session_id=session_id,
+            user_id=user_id,
+            agent_name=agent_name
+        )
+
         execution_data = {
             "user_id": user_id,
-            "session_id": session_id,
+            "session_id": session_uuid,  # Use resolved UUID for FK constraint
             "agent_name": agent_name,
             "execution_id": execution_id,
             "input_payload": input_payload,
